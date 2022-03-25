@@ -34,7 +34,8 @@ public class SpiExtensionFactory implements ExtensionFactory {
             ExtensionLoader<T> loader = ExtensionLoader.getExtensionLoader(type);
 
             if (!loader.getSupportedExtensions().isEmpty()) {
-                return loader.getAdaptiveExtension(); // 接口的Adaptive类（代理对象）
+                // 接口的Adaptive类（代理对象）
+                return loader.getAdaptiveExtension();
             }
         }
         return null;

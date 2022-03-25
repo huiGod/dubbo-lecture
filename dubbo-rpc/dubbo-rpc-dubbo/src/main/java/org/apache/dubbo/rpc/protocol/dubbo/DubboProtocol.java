@@ -16,6 +16,43 @@
  */
 package org.apache.dubbo.rpc.protocol.dubbo;
 
+import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.INTERFACE_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.PATH_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.VERSION_KEY;
+import static org.apache.dubbo.remoting.Constants.CHANNEL_READONLYEVENT_SENT_KEY;
+import static org.apache.dubbo.remoting.Constants.CLIENT_KEY;
+import static org.apache.dubbo.remoting.Constants.CODEC_KEY;
+import static org.apache.dubbo.remoting.Constants.CONNECTIONS_KEY;
+import static org.apache.dubbo.remoting.Constants.DEFAULT_HEARTBEAT;
+import static org.apache.dubbo.remoting.Constants.DEFAULT_REMOTING_CLIENT;
+import static org.apache.dubbo.remoting.Constants.HEARTBEAT_KEY;
+import static org.apache.dubbo.remoting.Constants.SERVER_KEY;
+import static org.apache.dubbo.rpc.Constants.DEFAULT_REMOTING_SERVER;
+import static org.apache.dubbo.rpc.Constants.DEFAULT_STUB_EVENT;
+import static org.apache.dubbo.rpc.Constants.IS_SERVER_KEY;
+import static org.apache.dubbo.rpc.Constants.LAZY_CONNECT_KEY;
+import static org.apache.dubbo.rpc.Constants.STUB_EVENT_KEY;
+import static org.apache.dubbo.rpc.Constants.STUB_EVENT_METHODS_KEY;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.CALLBACK_SERVICE_KEY;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.DEFAULT_SHARE_CONNECTIONS;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.IS_CALLBACK_SERVICE;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.ON_CONNECT_KEY;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.ON_DISCONNECT_KEY;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.OPTIMIZER_KEY;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.SHARE_CONNECTIONS_KEY;
+
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.URLBuilder;
 import org.apache.dubbo.common.config.ConfigurationUtils;
@@ -45,44 +82,6 @@ import org.apache.dubbo.rpc.RpcContext;
 import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.RpcInvocation;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
-
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.Function;
-
-import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.INTERFACE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.PATH_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.VERSION_KEY;
-import static org.apache.dubbo.rpc.Constants.LAZY_CONNECT_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.ON_CONNECT_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.ON_DISCONNECT_KEY;
-import static org.apache.dubbo.remoting.Constants.DEFAULT_HEARTBEAT;
-import static org.apache.dubbo.remoting.Constants.HEARTBEAT_KEY;
-import static org.apache.dubbo.remoting.Constants.CHANNEL_READONLYEVENT_SENT_KEY;
-import static org.apache.dubbo.remoting.Constants.CLIENT_KEY;
-import static org.apache.dubbo.remoting.Constants.CODEC_KEY;
-import static org.apache.dubbo.remoting.Constants.DEFAULT_REMOTING_CLIENT;
-import static org.apache.dubbo.remoting.Constants.SERVER_KEY;
-import static org.apache.dubbo.rpc.Constants.DEFAULT_REMOTING_SERVER;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.CALLBACK_SERVICE_KEY;
-import static org.apache.dubbo.remoting.Constants.CONNECTIONS_KEY;
-import static org.apache.dubbo.rpc.Constants.DEFAULT_STUB_EVENT;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.IS_CALLBACK_SERVICE;
-import static org.apache.dubbo.rpc.Constants.IS_SERVER_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.OPTIMIZER_KEY;
-import static org.apache.dubbo.rpc.Constants.STUB_EVENT_KEY;
-import static org.apache.dubbo.rpc.Constants.STUB_EVENT_METHODS_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.SHARE_CONNECTIONS_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.DEFAULT_SHARE_CONNECTIONS;
 
 
 /**
@@ -291,6 +290,7 @@ public class DubboProtocol extends AbstractProtocol {
         URL url = invoker.getUrl();
 
         // export service.
+        // tulings/org.apache.dubbo.demo.DemoService:1.0.1:20880
         String key = serviceKey(url);
         // 构造一个Exporter进行服务导出
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);

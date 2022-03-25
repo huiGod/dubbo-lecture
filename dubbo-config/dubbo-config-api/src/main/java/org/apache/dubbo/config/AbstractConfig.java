@@ -16,6 +16,20 @@
  */
 package org.apache.dubbo.config;
 
+import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.REMOVE_VALUE_PREFIX;
+import static org.apache.dubbo.common.utils.ReflectUtils.findMethodByMethodSignature;
+
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.config.CompositeConfiguration;
 import org.apache.dubbo.common.config.Configuration;
@@ -32,21 +46,6 @@ import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.config.context.ConfigConfigurationAdapter;
 import org.apache.dubbo.config.support.Parameter;
 import org.apache.dubbo.rpc.model.ConsumerMethodModel;
-
-import java.io.Serializable;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.REMOVE_VALUE_PREFIX;
-import static org.apache.dubbo.common.utils.ReflectUtils.findMethodByMethodSignature;
 
 /**
  * Utility methods and public methods for parsing configuration
@@ -640,7 +639,7 @@ public abstract class AbstractConfig implements Serializable {
 
             // 表示XxConfig对象本身- AbstractConfig
             Configuration config = new ConfigConfigurationAdapter(this);  // ServiceConfig
-
+            // 配置默认为 true
             if (Environment.getInstance().isConfigCenterFirst()) {
                 // The sequence would be: SystemConfiguration -> AppExternalConfiguration -> ExternalConfiguration -> AbstractConfig -> PropertiesConfiguration
                 compositeConfiguration.addConfiguration(4, config);
@@ -652,7 +651,7 @@ public abstract class AbstractConfig implements Serializable {
             // loop methods, get override value and set the new value back to method
             Method[] methods = getClass().getMethods();  //ServiceBean
             for (Method method : methods) {
-                // 是不是setXX()方法
+                // c处理etXX()方法
                 if (MethodUtils.isSetter(method)) {
                     // 获取xx配置项的value
                     String value = StringUtils.trim(compositeConfiguration.getString(extractPropertyName(getClass(), method)));

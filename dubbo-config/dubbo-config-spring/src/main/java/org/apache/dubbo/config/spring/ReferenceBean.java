@@ -16,6 +16,12 @@
  */
 package org.apache.dubbo.config.spring;
 
+import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.config.ApplicationConfig;
@@ -30,20 +36,12 @@ import org.apache.dubbo.config.RegistryConfig;
 import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.spring.extension.SpringExtensionFactory;
 import org.apache.dubbo.config.support.Parameter;
-
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
 
 /**
  * ReferenceFactoryBean
@@ -68,6 +66,8 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         SpringExtensionFactory.addApplicationContext(applicationContext);
     }
 
+    //ReferenceConfig是一个FactoryBean ，实现了getObject方法
+    //在spring容器初始化完成的时候会初始化配置为非lazyInit的bean，也就会调用ReferenceBean.getObject方法，里面会调用ReferenceConfig.get方法，从而触发ServiceConfig的初始化方法ServiceConfig.init
     @Override
     public Object getObject() {
         return get();

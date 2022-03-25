@@ -16,11 +16,16 @@
  */
 package org.apache.dubbo.config.spring.context.annotation;
 
+import static org.springframework.beans.factory.support.BeanDefinitionBuilder.rootBeanDefinition;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import org.apache.dubbo.config.annotation.Service;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ReferenceAnnotationBeanPostProcessor;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceAnnotationBeanPostProcessor;
 import org.apache.dubbo.config.spring.util.BeanRegistrar;
-
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
@@ -31,13 +36,6 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.util.ClassUtils;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
-import static org.springframework.beans.factory.support.BeanDefinitionBuilder.rootBeanDefinition;
 
 /**
  * Dubbo {@link DubboComponentScan} Bean Registrar
@@ -59,7 +57,7 @@ public class DubboComponentScanRegistrar implements ImportBeanDefinitionRegistra
         // 拿到DubboComponentScan注解所定义的包路径，扫描该package下的类，识别这些类上
         Set<String> packagesToScan = getPackagesToScan(importingClassMetadata);
 
-        // 注册ServiceAnnotationBeanPostProcessor一个Bean
+        // 注册ServiceAnnotationBeanPostProcessor
         // 实现了BeanDefinitionRegistryPostProcessor接口，所以在Spring启动时会调用postProcessBeanDefinitionRegistry方法
         // 该方法会进行扫描，扫描@Service注解了的类，然后生成BeanDefinition（会生成两个，一个普通的bean，一个ServiceBean），后续的Spring周期中会生成Bean
         // 在ServiceBean中会监听ContextRefreshedEvent事件，一旦Spring启动完后，就会进行服务导出

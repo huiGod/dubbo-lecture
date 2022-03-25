@@ -16,51 +16,6 @@
  */
 package org.apache.dubbo.config;
 
-import org.apache.dubbo.common.URL;
-import org.apache.dubbo.common.URLBuilder;
-import org.apache.dubbo.common.Version;
-import org.apache.dubbo.common.bytecode.Wrapper;
-import org.apache.dubbo.common.config.Environment;
-import org.apache.dubbo.common.extension.ExtensionLoader;
-import org.apache.dubbo.common.utils.ClassUtils;
-import org.apache.dubbo.common.utils.CollectionUtils;
-import org.apache.dubbo.common.utils.ConfigUtils;
-import org.apache.dubbo.common.utils.NamedThreadFactory;
-import org.apache.dubbo.common.utils.StringUtils;
-import org.apache.dubbo.config.annotation.Service;
-import org.apache.dubbo.config.context.ConfigManager;
-import org.apache.dubbo.config.invoker.DelegateProviderMetaDataInvoker;
-import org.apache.dubbo.config.support.Parameter;
-import org.apache.dubbo.metadata.integration.MetadataReportService;
-import org.apache.dubbo.remoting.Constants;
-import org.apache.dubbo.rpc.Exporter;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Protocol;
-import org.apache.dubbo.rpc.ProxyFactory;
-import org.apache.dubbo.rpc.cluster.ConfiguratorFactory;
-import org.apache.dubbo.rpc.model.ApplicationModel;
-import org.apache.dubbo.rpc.model.ProviderModel;
-import org.apache.dubbo.rpc.service.GenericService;
-import org.apache.dubbo.rpc.support.ProtocolUtils;
-
-import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import static org.apache.dubbo.common.constants.CommonConstants.ANYHOST_KEY;
 import static org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE;
 import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
@@ -93,6 +48,50 @@ import static org.apache.dubbo.rpc.Constants.SCOPE_LOCAL;
 import static org.apache.dubbo.rpc.Constants.SCOPE_REMOTE;
 import static org.apache.dubbo.rpc.Constants.TOKEN_KEY;
 import static org.apache.dubbo.rpc.cluster.Constants.EXPORT_KEY;
+
+import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.URLBuilder;
+import org.apache.dubbo.common.Version;
+import org.apache.dubbo.common.bytecode.Wrapper;
+import org.apache.dubbo.common.config.Environment;
+import org.apache.dubbo.common.extension.ExtensionLoader;
+import org.apache.dubbo.common.utils.ClassUtils;
+import org.apache.dubbo.common.utils.CollectionUtils;
+import org.apache.dubbo.common.utils.ConfigUtils;
+import org.apache.dubbo.common.utils.NamedThreadFactory;
+import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.config.annotation.Service;
+import org.apache.dubbo.config.context.ConfigManager;
+import org.apache.dubbo.config.invoker.DelegateProviderMetaDataInvoker;
+import org.apache.dubbo.config.support.Parameter;
+import org.apache.dubbo.metadata.integration.MetadataReportService;
+import org.apache.dubbo.remoting.Constants;
+import org.apache.dubbo.rpc.Exporter;
+import org.apache.dubbo.rpc.Invoker;
+import org.apache.dubbo.rpc.Protocol;
+import org.apache.dubbo.rpc.ProxyFactory;
+import org.apache.dubbo.rpc.cluster.ConfiguratorFactory;
+import org.apache.dubbo.rpc.model.ApplicationModel;
+import org.apache.dubbo.rpc.model.ProviderModel;
+import org.apache.dubbo.rpc.service.GenericService;
+import org.apache.dubbo.rpc.support.ProtocolUtils;
 
 /**
  * ServiceConfig
@@ -293,13 +292,12 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     public void checkAndUpdateSubConfigs() {
         // Use default configs defined explicitly on global configs
         // ServiceConfig中的某些属性如果是空的，那么就从ProviderConfig、ModuleConfig、ApplicationConfig中获取
-        // 补全ServiceConfig中的属性
         completeCompoundConfigs();
 
         // Config Center should always being started first.
-        // 从配置中心获取配置，包括应用配置和全局配置
-        // 把获取到的配置放入到Environment中的externalConfigurationMap和appExternalConfigurationMap中
-        // 并刷新所有的XxConfig的属性（除开ServiceConfig），刷新的意思就是将配置中心的配置覆盖调用XxConfig中的属性
+        // 包括针对应用和全局的配置
+        // 从配置中心获取配置，把获取到的配置放入到Environment中的externalConfigurationMap（全局配置）和appExternalConfigurationMap中（应用配置）
+        // 并刷新所有的XxConfig的属性（除开ServiceConfig），刷新的意思就是将配置中心的配置覆盖调内存中XxConfig中的属性
         startConfigCenter();
 
         checkDefault();
@@ -400,7 +398,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             return;
         }
 
-        // 检查是否需要延迟发布
+        // 参数刷新和检查完成了之后，就会开始导出服务，如果配置了延迟导出，那么则按指定的时间利用ScheduledExecutorService来进行延迟导出
         if (shouldDelay()) {
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
@@ -480,7 +478,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
-        // registryURL 表示一个注册中心
+        // 加载注册中心，registryURL 表示一个注册中心
         List<URL> registryURLs = loadRegistries(true);
 
         for (ProtocolConfig protocolConfig : protocols) {
@@ -496,13 +494,17 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             // ApplicationModel表示应用中有哪些服务提供者和引用了哪些服务
             ApplicationModel.initProviderModel(pathKey, providerModel);
 
-            // 重点
+            // 按照协议导出到注册中心
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
 
+    /**
+     * 将服务按照指定协议导出到指定的多个注册中心上
+     * @param protocolConfig 表示某个协议
+     * @param registryURLs 表示所有的注册中心
+     */
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
-        // protocolConfig表示某个协议，registryURLs表示所有的注册中心
 
         // 如果配置的某个协议，没有配置name，那么默认为dubbo
         String name = protocolConfig.getName();
@@ -514,6 +516,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         Map<String, String> map = new HashMap<String, String>();
         map.put(SIDE_KEY, PROVIDER_SIDE);
 
+        // 追加版本、时间戳等固定参数
         appendRuntimeParameters(map);
 
         // 监控中心参数
@@ -629,7 +632,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
 
         // export service
-        // 通过该host和port访问该服务
+        // 导出服务的host和port
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
         // 服务url
@@ -637,6 +640,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         // url：http://192.168.40.17:80/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&bind.ip=192.168.40.17&bind.port=80&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello&pid=285072&release=&side=provider&timestamp=1585206500409
 
         // 可以通过ConfiguratorFactory，对服务url再次进行配置
+        // SPI
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)

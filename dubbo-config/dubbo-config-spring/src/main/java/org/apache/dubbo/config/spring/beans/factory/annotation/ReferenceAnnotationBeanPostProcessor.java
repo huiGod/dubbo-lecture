@@ -16,13 +16,26 @@
  */
 package org.apache.dubbo.config.spring.beans.factory.annotation;
 
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static org.apache.dubbo.config.spring.beans.factory.annotation.ServiceBeanNameBuilder.create;
+import static org.apache.dubbo.config.spring.util.AnnotationUtils.getAttribute;
+import static org.springframework.util.StringUtils.hasText;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.annotation.Service;
 import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.context.event.ServiceBeanExportedEvent;
 import org.apache.dubbo.config.spring.util.AnnotationUtils;
-
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.InjectionMetadata;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -34,21 +47,6 @@ import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.core.annotation.AnnotationAttributes;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static org.apache.dubbo.config.spring.beans.factory.annotation.ServiceBeanNameBuilder.create;
-import static org.apache.dubbo.config.spring.util.AnnotationUtils.getAttribute;
-import static org.springframework.util.StringUtils.hasText;
 
 /**
  * {@link org.springframework.beans.factory.config.BeanPostProcessor} implementation
@@ -120,8 +118,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AnnotationInjectedBean
         return Collections.unmodifiableMap(injectedMethodReferenceBeanCache);
     }
 
-    // 该方法得到的对象会赋值给@ReferenceBean注解的属性
-    //
+    // 返回的对象会注入给@ReferenceBean注解的属性
     @Override
     protected Object doGetInjectedBean(AnnotationAttributes attributes, Object bean, String beanName, Class<?> injectedType,
                                        InjectionMetadata.InjectedElement injectedElement) throws Exception {
@@ -139,16 +136,16 @@ public class ReferenceAnnotationBeanPostProcessor extends AnnotationInjectedBean
         // 根据@Reference注解的信息生成referenceBeanName
         String referenceBeanName = getReferenceBeanName(attributes, injectedType);
 
-        // 生成一个ReferenceBean对象
+        // 如果不存在则创建ReferenceBean对象
         ReferenceBean referenceBean = buildReferenceBeanIfAbsent(referenceBeanName, attributes, injectedType);
 
         // 把referenceBean添加到Spring容器中去
         registerReferenceBean(referencedBeanName, referenceBean, attributes, injectedType);
 
+        // 保存到缓存中
         cacheInjectedReferenceBean(referenceBean, injectedElement);
 
         // 创建一个代理对象，Service中的属性被注入的就是这个代理对象
-        // 内部会调用referenceBean.get();
         return getOrCreateProxy(referencedBeanName, referenceBeanName, referenceBean, injectedType);
     }
 

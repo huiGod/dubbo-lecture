@@ -16,15 +16,14 @@
  */
 package org.apache.dubbo.config.spring.context.annotation;
 
-import org.apache.dubbo.config.AbstractConfig;
+import static org.apache.dubbo.config.spring.util.AnnotatedBeanDefinitionRegistryUtils.registerBeans;
 
+import org.apache.dubbo.config.AbstractConfig;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
-
-import static org.apache.dubbo.config.spring.util.AnnotatedBeanDefinitionRegistryUtils.registerBeans;
 
 /**
  * Dubbo {@link AbstractConfig Config} {@link ImportBeanDefinitionRegistrar register}, which order can be configured
@@ -44,7 +43,7 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
         AnnotationAttributes attributes = AnnotationAttributes.fromMap(
                 importingClassMetadata.getAnnotationAttributes(EnableDubboConfig.class.getName()));
 
-        boolean multiple = attributes.getBoolean("multiple"); //true
+        boolean multiple = attributes.getBoolean("multiple"); //默认是true
 
         // Single Config Bindings
         registerBeans(registry, DubboConfigConfiguration.Single.class);

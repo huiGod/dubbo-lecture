@@ -16,41 +16,6 @@
  */
 package org.apache.dubbo.registry.integration;
 
-import org.apache.dubbo.common.URL;
-import org.apache.dubbo.common.URLBuilder;
-import org.apache.dubbo.common.config.ConfigurationUtils;
-import org.apache.dubbo.common.extension.ExtensionLoader;
-import org.apache.dubbo.common.logger.Logger;
-import org.apache.dubbo.common.logger.LoggerFactory;
-import org.apache.dubbo.common.utils.CollectionUtils;
-import org.apache.dubbo.common.utils.NamedThreadFactory;
-import org.apache.dubbo.common.utils.StringUtils;
-import org.apache.dubbo.common.utils.UrlUtils;
-import org.apache.dubbo.configcenter.DynamicConfiguration;
-import org.apache.dubbo.registry.NotifyListener;
-import org.apache.dubbo.registry.Registry;
-import org.apache.dubbo.registry.RegistryFactory;
-import org.apache.dubbo.registry.RegistryService;
-import org.apache.dubbo.registry.support.ProviderConsumerRegTable;
-import org.apache.dubbo.registry.support.ProviderInvokerWrapper;
-import org.apache.dubbo.rpc.Exporter;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Protocol;
-import org.apache.dubbo.rpc.ProxyFactory;
-import org.apache.dubbo.rpc.RpcException;
-import org.apache.dubbo.rpc.cluster.Cluster;
-import org.apache.dubbo.rpc.cluster.Configurator;
-import org.apache.dubbo.rpc.model.ApplicationModel;
-import org.apache.dubbo.rpc.protocol.InvokerWrapper;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE;
 import static org.apache.dubbo.common.constants.CommonConstants.APPLICATION_KEY;
@@ -105,6 +70,40 @@ import static org.apache.dubbo.rpc.cluster.Constants.LOADBALANCE_KEY;
 import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
 import static org.apache.dubbo.rpc.cluster.Constants.WARMUP_KEY;
 import static org.apache.dubbo.rpc.cluster.Constants.WEIGHT_KEY;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.URLBuilder;
+import org.apache.dubbo.common.config.ConfigurationUtils;
+import org.apache.dubbo.common.extension.ExtensionLoader;
+import org.apache.dubbo.common.logger.Logger;
+import org.apache.dubbo.common.logger.LoggerFactory;
+import org.apache.dubbo.common.utils.CollectionUtils;
+import org.apache.dubbo.common.utils.NamedThreadFactory;
+import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.common.utils.UrlUtils;
+import org.apache.dubbo.configcenter.DynamicConfiguration;
+import org.apache.dubbo.registry.NotifyListener;
+import org.apache.dubbo.registry.Registry;
+import org.apache.dubbo.registry.RegistryFactory;
+import org.apache.dubbo.registry.RegistryService;
+import org.apache.dubbo.registry.support.ProviderConsumerRegTable;
+import org.apache.dubbo.registry.support.ProviderInvokerWrapper;
+import org.apache.dubbo.rpc.Exporter;
+import org.apache.dubbo.rpc.Invoker;
+import org.apache.dubbo.rpc.Protocol;
+import org.apache.dubbo.rpc.ProxyFactory;
+import org.apache.dubbo.rpc.RpcException;
+import org.apache.dubbo.rpc.cluster.Cluster;
+import org.apache.dubbo.rpc.cluster.Configurator;
+import org.apache.dubbo.rpc.model.ApplicationModel;
+import org.apache.dubbo.rpc.protocol.InvokerWrapper;
 
 /**
  * RegistryProtocol
@@ -202,10 +201,13 @@ public class RegistryProtocol implements Protocol {
         // zookeeper://  ---> ZookeeperRegistry
         // dubbo://      ---> DubboProtocol
 
-        // registry://xxx?xx=xx&registry=zookeeper ---> zookeeper://xxx?xx=xx     表示注册中心
-        URL registryUrl = getRegistryUrl(originInvoker); // zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-provider-application&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.40.17%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-provider-application%26bean.name%3DServiceBean%3Aorg.apache.dubbo.demo.DemoService%26bind.ip%3D192.168.40.17%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26logger%3Dlog4j%26methods%3DsayHello%26pid%3D27656%26release%3D2.7.0%26side%3Dprovider%26timeout%3D3000%26timestamp%3D1590735956489&logger=log4j&pid=27656&release=2.7.0&timestamp=1590735956479
-        // 得到服务提供者url，表示服务提供者
-        URL providerUrl = getProviderUrl(originInvoker); // dubbo://192.168.40.17:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-provider-application&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&bind.ip=192.168.40.17&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&logger=log4j&methods=sayHello&pid=27656&release=2.7.0&side=provider&timeout=3000&timestamp=1590735956489
+        // registry://xxx?xx=xx&registry=zookeeper ---> zookeeper://xxx?xx=xx
+        // zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-provider-application&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.40.17%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-provider-application%26bean.name%3DServiceBean%3Aorg.apache.dubbo.demo.DemoService%26bind.ip%3D192.168.40.17%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26logger%3Dlog4j%26methods%3DsayHello%26pid%3D27656%26release%3D2.7.0%26side%3Dprovider%26timeout%3D3000%26timestamp%3D1590735956489&logger=log4j&pid=27656&release=2.7.0&timestamp=1590735956479
+        // 将 URL 的registry协议替换为 registry 参数的值
+        URL registryUrl = getRegistryUrl(originInvoker);
+        // dubbo://192.168.40.17:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-provider-application&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&bind.ip=192.168.40.17&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&logger=log4j&methods=sayHello&pid=27656&release=2.7.0&side=provider&timeout=3000&timestamp=1590735956489
+        // 从 URL 中获取export的值，得到服务提供者url，表示服务提供者
+        URL providerUrl = getProviderUrl(originInvoker);
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call

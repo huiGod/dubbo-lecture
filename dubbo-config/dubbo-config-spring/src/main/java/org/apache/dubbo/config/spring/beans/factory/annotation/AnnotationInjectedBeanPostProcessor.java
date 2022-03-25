@@ -16,6 +16,24 @@
  */
 package org.apache.dubbo.config.spring.beans.factory.annotation;
 
+import static org.apache.dubbo.config.spring.util.AnnotationUtils.getMergedAttributes;
+import static org.springframework.core.BridgeMethodResolver.findBridgedMethod;
+import static org.springframework.core.BridgeMethodResolver.isVisibilityBridgeMethodPair;
+
+import java.beans.PropertyDescriptor;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.BeanUtils;
@@ -42,25 +60,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
-
-import java.beans.PropertyDescriptor;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import static org.apache.dubbo.config.spring.util.AnnotationUtils.getMergedAttributes;
-import static org.springframework.core.BridgeMethodResolver.findBridgedMethod;
-import static org.springframework.core.BridgeMethodResolver.isVisibilityBridgeMethodPair;
 
 /**
  * Abstract generic {@link BeanPostProcessor} implementation for customized annotation that annotated injected-object.
@@ -142,9 +141,11 @@ public abstract class AnnotationInjectedBeanPostProcessor extends
     public PropertyValues postProcessPropertyValues(
             PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) throws BeanCreationException {
 
-        // 寻找需要注入的属性（被@Reference标注的Field）
+        // 寻找需要注入的属性
+        // @Reference注解的属性或方法都是注入点
         InjectionMetadata metadata = findInjectionMetadata(beanName, bean.getClass(), pvs);
         try {
+            // 调用AnnotatedFieldElement、AnnotatedMethodElement的 inject 方法进行反射注入
             metadata.inject(bean, beanName, pvs);
         } catch (BeanCreationException ex) {
             throw ex;
@@ -358,14 +359,14 @@ public abstract class AnnotationInjectedBeanPostProcessor extends
     protected Object getInjectedObject(AnnotationAttributes attributes, Object bean, String beanName, Class<?> injectedType,
                                        InjectionMetadata.InjectedElement injectedElement) throws Exception {
         // ServiceBean:org.apache.dubbo.demo.DemoService#source=private org.apache.dubbo.demo.DemoService org.apache.dubbo.demo.consumer.comp.DemoServiceComponent.demoService#attributes={parameters=[Ljava.lang.String;@42e25b0b}
-        // 哪个Service应用了哪个类型的服务，通过什么方式引入的
+        // 缓存 key
         String cacheKey = buildInjectedObjectCacheKey(attributes, bean, beanName, injectedType, injectedElement);
-        // cacheKey很鸡肋，属性名不一样的时候，cacheKey不一样，导致不能缓存， 在一个Service中@Reference两次同一个服务缓存不到
+        // cacheKey很鸡肋，属性名不一样的时候，cacheKey不一样，导致不能缓存， 在一个Service中@Reference两次同一个服务无法通过缓存查询到
 
         Object injectedObject = injectedObjectsCache.get(cacheKey);
 
         if (injectedObject == null) {
-            // 生成Bean
+            //创建注入之后的对象
             injectedObject = doGetInjectedBean(attributes, bean, beanName, injectedType, injectedElement);
 
             // Customized inject-object if necessary

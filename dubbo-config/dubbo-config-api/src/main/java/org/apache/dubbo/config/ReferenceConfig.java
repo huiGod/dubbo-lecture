@@ -16,6 +16,37 @@
  */
 package org.apache.dubbo.config;
 
+import static org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE;
+import static org.apache.dubbo.common.constants.CommonConstants.CLUSTER_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SEPARATOR;
+import static org.apache.dubbo.common.constants.CommonConstants.CONSUMER_SIDE;
+import static org.apache.dubbo.common.constants.CommonConstants.DUBBO;
+import static org.apache.dubbo.common.constants.CommonConstants.INTERFACE_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.LOCALHOST_VALUE;
+import static org.apache.dubbo.common.constants.CommonConstants.METHODS_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.MONITOR_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.REVISION_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.SEMICOLON_SPLIT_PATTERN;
+import static org.apache.dubbo.common.constants.CommonConstants.SIDE_KEY;
+import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_PROTOCOL;
+import static org.apache.dubbo.common.utils.NetUtils.isInvalidLocalHost;
+import static org.apache.dubbo.config.Constants.DUBBO_IP_TO_REGISTRY;
+import static org.apache.dubbo.registry.Constants.CONSUMER_PROTOCOL;
+import static org.apache.dubbo.registry.Constants.REGISTER_IP_KEY;
+import static org.apache.dubbo.rpc.Constants.LOCAL_PROTOCOL;
+import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.Version;
 import org.apache.dubbo.common.bytecode.Wrapper;
@@ -42,38 +73,6 @@ import org.apache.dubbo.rpc.model.ConsumerModel;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.service.GenericService;
 import org.apache.dubbo.rpc.support.ProtocolUtils;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import static org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE;
-import static org.apache.dubbo.common.constants.CommonConstants.CLUSTER_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SEPARATOR;
-import static org.apache.dubbo.common.constants.CommonConstants.CONSUMER_SIDE;
-import static org.apache.dubbo.common.constants.CommonConstants.DUBBO;
-import static org.apache.dubbo.common.constants.CommonConstants.INTERFACE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.LOCALHOST_VALUE;
-import static org.apache.dubbo.common.constants.CommonConstants.METHODS_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.MONITOR_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.REVISION_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.SEMICOLON_SPLIT_PATTERN;
-import static org.apache.dubbo.common.constants.CommonConstants.SIDE_KEY;
-import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_PROTOCOL;
-import static org.apache.dubbo.common.utils.NetUtils.isInvalidLocalHost;
-import static org.apache.dubbo.config.Constants.DUBBO_IP_TO_REGISTRY;
-import static org.apache.dubbo.registry.Constants.CONSUMER_PROTOCOL;
-import static org.apache.dubbo.registry.Constants.REGISTER_IP_KEY;
-import static org.apache.dubbo.rpc.Constants.LOCAL_PROTOCOL;
-import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
 
 /**
  * ReferenceConfig
@@ -216,7 +215,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (StringUtils.isEmpty(interfaceName)) {
             throw new IllegalStateException("<dubbo:reference interface=\"\" /> interface not allow null!");
         }
-        // 填充ReferenceConfig对象中的属性
+        // 用于检测 provider、application 等核心配置类对象是否为空，
+        // 若为空，则尝试从其他配置类对象中获取相应的实例。
         completeCompoundConfigs();
         // 开启配置中心
         startConfigCenter();
@@ -251,13 +251,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     public synchronized T get() {
+        // 调用checkAndUpdateSubConfigs()，检查和更新参数，和服务提供者类似，把ReferenceBean里的属性的值更新为优先级最高的参数值
         checkAndUpdateSubConfigs();
 
         if (destroyed) {
             throw new IllegalStateException("The invoker of ReferenceConfig(" + url + ") has already destroyed!");
         }
         if (ref == null) {
-            // 入口
+            // 调用init()去生成代理对象ref，get()方法会返回这个ref
             init();
         }
         return ref;  // Invoke代理
@@ -281,12 +282,16 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     private void init() {
+        //判断是否已经初始化，get方法是同步方法，所以只需直接判断标志位initialized即可
         if (initialized) {
             return;
         }
 
+        //判断配置的interface是否正确
         checkStubAndLocal(interfaceClass);
+        //判断-D参数配置或者配置文件是否配置是直连提供者
         checkMock(interfaceClass);
+        // 在生成代理对象ref之前，先把消费者所引入服务设置的参数添加到一个map中，等会根据这个map中的参数去从注册中心查找服务
         Map<String, String> map = new HashMap<String, String>();
 
         map.put(SIDE_KEY, CONSUMER_SIDE);
@@ -340,7 +345,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         }
         map.put(REGISTER_IP_KEY, hostToRegistry);
 
-        // 根据
+        // 创建远程服务的本地代理
         ref = createProxy(map);
 
         String serviceKey = URL.buildKey(interfaceName, group, version);
@@ -374,7 +379,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         } else {
             // 为什么会有urls，因为可以在@Reference的url属性中配置多个url，可以是点对点的服务地址，也可以是注册中心的地址
             urls.clear(); // reference retry init will add url to urls, lead to OOM
-            // @Reference中指定了url属性
+            // @Reference中指定了url属性，如果配置了url，则不从registry中获取，直接使用配置的url
             if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
                 String[] us = SEMICOLON_SPLIT_PATTERN.split(url); // 用;号切分
                 if (us != null && us.length > 0) {
@@ -401,7 +406,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 // if protocols not injvm checkRegistry
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())){
                     checkRegistry();
-                    // 加载注册中心地址
+                    // 把消费者配置的所有注册中心获取出来
                     List<URL> us = loadRegistries(false);
                     if (CollectionUtils.isNotEmpty(us)) {
                         for (URL u : us) {
@@ -424,7 +429,6 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 // RegistryProtocol.refer() 或者 DubboProtocol.refer()
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
                 // MockClusterInvoker-->FailoverClusterInvoker-->RegistryDirectory
-                //                                                          --->RegistryDirectory$InvokerDelegate-->ListenerInvokerWrapper-->ProtocolFilterWrapper$CallbackRegistrationInvoker-->ConsumerContextFilter-->FutureFilter-->MonitorFilter-->AsyncToSyncInvoker-->DubboInvoker
                 //                                                          --->RegistryDirectory$InvokerDelegate-->ListenerInvokerWrapper-->ProtocolFilterWrapper$CallbackRegistrationInvoker-->ConsumerContextFilter-->FutureFilter-->MonitorFilter-->AsyncToSyncInvoker-->DubboInvoker
             } else {
                 // 如果有多个url
@@ -472,6 +476,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             metadataReportService.publishConsumer(consumerURL);
         }
         // create service proxy
+        // 把最终得到的invoker对象调用PROXY_FACTORY.getProxy(invoker);得到一个代理对象，并返回，这个代理对象就是ref
         return (T) PROXY_FACTORY.getProxy(invoker);
     }
 

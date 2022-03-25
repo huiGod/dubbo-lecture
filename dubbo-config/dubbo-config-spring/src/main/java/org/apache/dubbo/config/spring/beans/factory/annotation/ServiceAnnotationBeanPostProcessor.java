@@ -16,7 +16,24 @@
  */
 package org.apache.dubbo.config.spring.beans.factory.annotation;
 
+import static org.apache.dubbo.config.spring.beans.factory.annotation.ServiceBeanNameBuilder.create;
+import static org.apache.dubbo.config.spring.util.AnnotationUtils.resolveServiceInterfaceClass;
+import static org.apache.dubbo.config.spring.util.ObjectUtils.of;
+import static org.springframework.beans.factory.support.BeanDefinitionBuilder.rootBeanDefinition;
+import static org.springframework.context.annotation.AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR;
+import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
+import static org.springframework.core.annotation.AnnotationUtils.getAnnotationAttributes;
+import static org.springframework.util.ClassUtils.resolveClassName;
+
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.common.utils.ArrayUtils;
@@ -25,7 +42,6 @@ import org.apache.dubbo.config.annotation.Method;
 import org.apache.dubbo.config.annotation.Service;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.context.annotation.DubboClassPathBeanDefinitionScanner;
-
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.factory.BeanClassLoaderAware;
@@ -53,24 +69,6 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-
-import java.lang.annotation.Annotation;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.apache.dubbo.config.spring.beans.factory.annotation.ServiceBeanNameBuilder.create;
-import static org.apache.dubbo.config.spring.util.AnnotationUtils.resolveServiceInterfaceClass;
-import static org.apache.dubbo.config.spring.util.ObjectUtils.of;
-import static org.springframework.beans.factory.support.BeanDefinitionBuilder.rootBeanDefinition;
-import static org.springframework.context.annotation.AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR;
-import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
-import static org.springframework.core.annotation.AnnotationUtils.getAnnotationAttributes;
-import static org.springframework.util.ClassUtils.resolveClassName;
 
 /**
  * {@link Service} Annotation
@@ -129,9 +127,11 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
      */
     private void registerServiceBeans(Set<String> packagesToScan, BeanDefinitionRegistry registry) {
 
+        //自定义的扫描器
         DubboClassPathBeanDefinitionScanner scanner =
                 new DubboClassPathBeanDefinitionScanner(registry, environment, resourceLoader);
 
+        //beanName 生成策略
         BeanNameGenerator beanNameGenerator = resolveBeanNameGenerator(registry);
 
         scanner.setBeanNameGenerator(beanNameGenerator);
@@ -273,7 +273,7 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
         /**
          * The {@link AnnotationAttributes} of @Service annotation
          */
-        // @Service注解上的信息
+        // 获取@Service注解上的信息
         AnnotationAttributes serviceAnnotationAttributes = getAnnotationAttributes(service, false, false);
 
         // 服务实现类对应的接口

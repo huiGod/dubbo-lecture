@@ -45,7 +45,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
 
         // proxy是服务实现类
         // type是服务接口
-        // url是一个注册中心url，但同时也记录了
+        // url是一个注册中心url，但同时也记录了服务 url
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,
